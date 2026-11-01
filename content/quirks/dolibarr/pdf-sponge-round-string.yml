@@ -1,0 +1,27 @@
+id: quirk:dolibarr/pdf-sponge-round-string
+kind: quirk
+summary:
+  fr: pdf_sponge passe une chaîne à round(), ce qui casse les PDF Dolibarr en PHP 8.1+.
+  en: pdf_sponge passes a string to round(), breaking Dolibarr PDF output on PHP 8.1+.
+status: verified
+confidence: high
+applies_to:
+  tool: dolibarr
+  versions: '>=19 <21'
+  php: '>=8.1'
+symptom:
+  fr: 'Erreur fatale « round(): Argument #1 must be of type int|float, string given » lors de la génération PDF.'
+  en: 'Fatal "round(): Argument #1 must be of type int|float, string given" during PDF generation.'
+cause:
+  fr: La valeur numérique issue de la configuration ou du calcul est une chaîne non convertie.
+  en: The numeric value from configuration or computation remains an unconverted string.
+remediation:
+  fr: Caster la valeur en float avant round(), ou appliquer le correctif upstream.
+  en: Cast the value to float before round(), or apply the upstream fix.
+refs:
+  - https://github.com/Dolibarr/dolibarr
+provenance:
+  source: https://github.com/Dolibarr/dolibarr
+  fetched_at: '2026-11-01'
+  verified_at: '2026-11-01'
+  verified_by: iprospective

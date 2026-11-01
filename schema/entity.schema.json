@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iprospective.fr/schema/mmi-kb/entity.schema.json",
+  "title": "Fiche mmi-dev-knowledge",
+  "type": "object",
+  "required": ["id", "kind", "summary", "status", "provenance"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^(tool|component|version|compatibility|quirk|recipe|source|license|vendor):[a-z0-9][a-z0-9@/._-]*$"
+    },
+    "kind": {
+      "enum": ["tool", "component", "version", "compatibility", "quirk", "recipe", "source", "license", "vendor"]
+    },
+    "summary": {
+      "oneOf": [
+        {"type": "string"},
+        {
+          "type": "object",
+          "required": ["fr"],
+          "properties": {"fr": {"type": "string"}, "en": {"type": "string"}},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "status": {"enum": ["draft", "verified", "deprecated"]},
+    "confidence": {"enum": ["low", "medium", "high"]},
+    "applies_to": {
+      "type": "object",
+      "properties": {
+        "tool": {"type": "string"},
+        "component": {"type": "string"},
+        "versions": {"type": "string"},
+        "php": {"type": "string"},
+        "os": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["source"],
+      "properties": {
+        "source": {"type": "string"},
+        "fetched_at": {"type": "string"},
+        "verified_at": {"type": "string"},
+        "verified_by": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "relations": {"type": "object"},
+    "refs": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

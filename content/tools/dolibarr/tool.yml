@@ -1,0 +1,18 @@
+id: tool:dolibarr
+kind: tool
+summary:
+  fr: ERP/CRM open source modular, base des modules MMI.
+  en: Modular open-source ERP/CRM, base for MMI modules.
+status: verified
+confidence: high
+provenance:
+  source: https://github.com/Dolibarr/dolibarr
+  fetched_at: '2026-11-01'
+  verified_at: '2026-11-01'
+  verified_by: iprospective
+refs:
+  - https://www.dolibarr.org/
+  - https://wiki.dolibarr.org/
+  - https://github.com/Dolibarr/dolibarr
+vendor: Dolibarr
+license: GPL-3.0-or-later
