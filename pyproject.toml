@@ -2,8 +2,11 @@
 name = "mmi-dev-knowledge"
 version = "0.1.0"
 description = "Knowledge transverse generique pour les outils iProspective"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = ["PyYAML>=6"]
+
+[project.optional-dependencies]
+dev = ["jsonschema>=4"]
 
 [project.scripts]
 mmi-kb = "mmi_kb.cli:main"
