@@ -17,6 +17,7 @@ quirks, recettes, sources et licences.
 ```text
 schema/                  JSON Schema des kinds + contrats
 examples/                exemples de bloc tâche et de vue
+content/docs/            documents Markdown + frontmatter (kind doc)
 content/tools/           fiches outil
 content/quirks/          comportements inattendus et remédiations
 content/recipes/         recettes de test génériques
@@ -42,6 +43,8 @@ bin/mmi-kb validate
 bin/mmi-kb index
 bin/mmi-kb search dolibarr
 bin/mmi-kb show quirk:dolibarr/pdf-sponge-round-string
+bin/mmi-kb view tests --tool dolibarr --format json
+bin/mmi-kb serve --host 127.0.0.1 --port 8091
 ```
 
 Prérequis : Python 3.9+, PyYAML.
