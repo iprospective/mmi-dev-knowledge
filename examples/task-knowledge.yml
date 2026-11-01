@@ -1,0 +1,7 @@
+knowledge:
+  action: read
+  refs:
+    - tool:dolibarr
+    - recipe:dolibarr/sales-chain
+  required: true
+  lock: a31a096

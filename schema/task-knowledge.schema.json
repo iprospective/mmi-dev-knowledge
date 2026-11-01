@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iprospective.fr/schema/mmi-kb/task-knowledge.schema.json",
+  "title": "Bloc knowledge d'une tache PM",
+  "type": "object",
+  "required": ["action", "refs"],
+  "properties": {
+    "action": {
+      "enum": ["read", "update"]
+    },
+    "refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^(tool|component|version|compatibility|quirk|recipe|source|license|vendor):[a-z0-9][a-z0-9@/._-]*$"
+      }
+    },
+    "target": {
+      "type": "string",
+      "pattern": "^(tools|components|quirks|recipes|sources|licenses|vendors)/[A-Za-z0-9._/-]+\\.yml$"
+    },
+    "required": {
+      "type": "boolean"
+    },
+    "lock": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"action": {"const": "update"}}
+      },
+      "then": {
+        "required": ["target"]
+      }
+    }
+  ],
+  "additionalProperties": false
+}
