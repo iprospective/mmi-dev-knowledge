@@ -39,4 +39,4 @@ Prérequis : Python 3.9+, PyYAML.
 
 ## Licence
 
-Code : GPL-3.0-or-later. Contenu : CC BY-SA 4.0 (à confirmer).
+Code et contenu : GPL-3.0-or-later (décision du 2026-11-01).
