@@ -43,7 +43,7 @@ def build_router(app: App) -> Router:
         doc = app.repository.get(request.params["id"])
         if doc is None:
             raise HttpError(404, f"fiche introuvable : {request.params['id']}")
-        return Response.json(public(doc))
+        return Response.json(public(doc, body=doc.get("kind") == "doc"))
 
     router.add("GET", "/", root)
     router.add("GET", "/health", health)

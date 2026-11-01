@@ -21,10 +21,24 @@ KINDS = {
     "source",
     "license",
     "vendor",
+    "doc",
 }
 VIEWS = {"docs", "tests", "agents", "compat", "catalog", "releases", "licenses", "sources"}
+DOC_TYPES = {
+    "overview",
+    "api",
+    "procedure",
+    "runbook",
+    "reference",
+    "tutorial",
+    "explanation",
+    "howto",
+    "test_protocol",
+    "test_surface",
+    "guide",
+}
 ID_RE = re.compile(
-    r"^(tool|component|version|compatibility|quirk|recipe|source|license|vendor):"
+    r"^(tool|component|version|compatibility|quirk|recipe|source|license|vendor|doc):"
     r"[a-z0-9][a-z0-9@/._-]*$"
 )
 FORBIDDEN_KEYS = {
@@ -105,6 +119,13 @@ def validate_doc(doc: dict[str, Any], rel: str) -> list[str]:
         errors.append(f"{rel}: status invalide : {doc.get('status')!r}")
     if doc.get("confidence") is not None and doc.get("confidence") not in {"low", "medium", "high"}:
         errors.append(f"{rel}: confidence invalide : {doc.get('confidence')!r}")
+    if kind == "doc":
+        if not doc.get("title"):
+            errors.append(f"{rel}: champ requis pour un doc : title")
+        if doc.get("doc_type") not in DOC_TYPES:
+            errors.append(f"{rel}: doc_type invalide : {doc.get('doc_type')!r}")
+        if not str(doc.get("_body", "")).strip():
+            errors.append(f"{rel}: corps Markdown vide")
 
     provenance = doc.get("provenance")
     if provenance is not None and not isinstance(provenance, dict):
@@ -118,5 +139,8 @@ def validate_doc(doc: dict[str, Any], rel: str) -> list[str]:
     return errors
 
 
-def public(doc: dict[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in doc.items() if not key.startswith("_")}
+def public(doc: dict[str, Any], body: bool = False) -> dict[str, Any]:
+    out = {key: value for key, value in doc.items() if not key.startswith("_")}
+    if body and "_body" in doc:
+        out["body"] = doc["_body"]
+    return out

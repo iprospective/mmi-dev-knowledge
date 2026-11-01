@@ -11,9 +11,9 @@ from .domain import VIEWS, KbError, public, tool_of
 from .repository import YamlRepository
 
 VIEW_KINDS = {
-    "docs": {"tool", "component", "version", "quirk", "recipe", "source", "license", "vendor"},
-    "tests": {"recipe", "quirk"},
-    "agents": {"tool", "component", "version", "quirk", "recipe"},
+    "docs": {"tool", "component", "version", "quirk", "recipe", "source", "license", "vendor", "doc"},
+    "tests": {"recipe", "quirk", "doc"},
+    "agents": {"tool", "component", "version", "quirk", "recipe", "doc"},
     "compat": {"compatibility"},
     "catalog": {"component"},
     "releases": {"version"},
@@ -64,11 +64,13 @@ class ViewService:
         docs, errors = self.repository.load_all()
         if errors:
             raise KbError("corpus invalide : " + "; ".join(errors[:3]))
-        items = [
-            public(doc)
-            for doc in docs
-            if doc.get("kind") in VIEW_KINDS[view] and _matches(doc, filters)
-        ]
+        items = []
+        for doc in docs:
+            if doc.get("kind") not in VIEW_KINDS[view] or not _matches(doc, filters):
+                continue
+            if view == "tests" and doc.get("kind") == "doc" and doc.get("doc_type") not in {"test_protocol", "test_surface"}:
+                continue
+            items.append(public(doc, body=doc.get("kind") == "doc"))
         return {
             "schema": "mmi-kb.view/v1",
             "view": view,
