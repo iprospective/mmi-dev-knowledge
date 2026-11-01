@@ -15,7 +15,8 @@ quirks, recettes, sources et licences.
 ## Structure
 
 ```text
-schema/                  JSON Schema des kinds
+schema/                  JSON Schema des kinds + contrats
+examples/                exemples de bloc tâche et de vue
 content/tools/           fiches outil
 content/quirks/          comportements inattendus et remédiations
 content/recipes/         recettes de test génériques
@@ -23,8 +24,16 @@ content/vendors/         éditeurs/communautés
 content/licenses/        licences et obligations
 collectors/              collecte optionnelle par plateforme
 src/mmi_kb/              CLI
+tests/                   tests de structure des contrats
 index/                    index SQLite généré, non versionné
 ```
+
+## Contrats
+
+- `schema/task-knowledge.schema.json` : bloc `knowledge` d'une tâche PM.
+- `schema/view.schema.json` : enveloppe `mmi-kb.view/v1`.
+- Le contrat fonctionnel est dans PM et dans le wiki `knowledge-base`
+  (`Contrat-knowledge`).
 
 ## CLI
 

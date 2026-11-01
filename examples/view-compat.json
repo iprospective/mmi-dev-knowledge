@@ -1,0 +1,8 @@
+{
+  "schema": "mmi-kb.view/v1",
+  "view": "compat",
+  "generated_at": "2026-11-01T21:00:00Z",
+  "knowledge_commit": "a31a096",
+  "filters": {"tool": "dolibarr", "php": "8.1"},
+  "items": []
+}

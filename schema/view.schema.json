@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iprospective.fr/schema/mmi-kb/view.schema.json",
+  "title": "Enveloppe d'une vue mmi-kb",
+  "type": "object",
+  "required": ["schema", "view", "generated_at", "knowledge_commit", "items"],
+  "properties": {
+    "schema": {"const": "mmi-kb.view/v1"},
+    "view": {
+      "enum": ["docs", "tests", "agents", "compat", "catalog", "releases", "licenses", "sources"]
+    },
+    "generated_at": {"type": "string", "format": "date-time"},
+    "knowledge_commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+    "filters": {"type": "object"},
+    "items": {"type": "array"}
+  },
+  "additionalProperties": false
+}
