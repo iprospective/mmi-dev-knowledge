@@ -13,12 +13,12 @@
       "minItems": 1,
       "items": {
         "type": "string",
-        "pattern": "^(tool|component|version|compatibility|quirk|recipe|source|license|vendor):[a-z0-9][a-z0-9@/._-]*$"
+        "pattern": "^(tool|component|version|compatibility|quirk|recipe|source|license|vendor|doc):[a-z0-9][a-z0-9@/._-]*$"
       }
     },
     "target": {
       "type": "string",
-      "pattern": "^(tools|components|quirks|recipes|sources|licenses|vendors)/[A-Za-z0-9._/-]+\\.yml$"
+      "pattern": "^(tools|components|quirks|recipes|sources|licenses|vendors|docs)/[A-Za-z0-9._/-]+\\.(yml|md)$"
     },
     "required": {
       "type": "boolean"

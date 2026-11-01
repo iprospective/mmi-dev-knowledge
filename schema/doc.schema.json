@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iprospective.fr/schema/mmi-kb/doc.schema.json",
+  "title": "Document Markdown de mmi-dev-knowledge",
+  "type": "object",
+  "required": ["id", "kind", "doc_type", "title", "summary", "status", "provenance"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^doc:[a-z0-9][a-z0-9@/._-]*$"},
+    "kind": {"const": "doc"},
+    "doc_type": {
+      "enum": ["overview", "api", "procedure", "runbook", "reference", "tutorial", "explanation", "howto", "test_protocol", "test_surface", "guide"]
+    },
+    "title": {"type": "string"},
+    "summary": {
+      "oneOf": [
+        {"type": "string"},
+        {"type": "object", "required": ["fr"], "properties": {"fr": {"type": "string"}, "en": {"type": "string"}}}
+      ]
+    },
+    "status": {"enum": ["draft", "verified", "deprecated"]},
+    "confidence": {"enum": ["low", "medium", "high"]},
+    "audience": {"type": "array", "items": {"type": "string"}},
+    "applies_to": {"type": "object"},
+    "provenance": {
+      "type": "object",
+      "required": ["source"],
+      "properties": {
+        "source": {"type": "string"},
+        "fetched_at": {"type": "string"},
+        "verified_at": {"type": "string"},
+        "verified_by": {"type": "string"}
+      }
+    },
+    "owner": {"type": "string"},
+    "relations": {"type": "object"},
+    "refs": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

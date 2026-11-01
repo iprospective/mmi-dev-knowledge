@@ -16,16 +16,38 @@ class YamlRepository:
     def paths(self) -> list[Path]:
         if not self.content.is_dir():
             raise KbError(f"dossier content/ absent : {self.content}")
-        return sorted(self.content.rglob("*.yml")) + sorted(self.content.rglob("*.yaml"))
+        return (
+            sorted(self.content.rglob("*.yml"))
+            + sorted(self.content.rglob("*.yaml"))
+            + sorted(self.content.rglob("*.md"))
+        )
+
+    def load_doc(self, path: Path) -> dict[str, Any]:
+        if path.suffix == ".md":
+            text = path.read_text(encoding="utf-8")
+            if not text.startswith("---\n"):
+                raise KbError(f"{path}: frontmatter YAML absent")
+            end = text.find("\n---", 4)
+            if end == -1:
+                raise KbError(f"{path}: frontmatter non ferme")
+            front = text[4:end]
+            body = text[end + 4:].lstrip("\n")
+            try:
+                import yaml
+                doc = yaml.safe_load(front) or {}
+            except Exception as exc:
+                raise KbError(f"{path}: frontmatter invalide : {exc}") from exc
+            if not isinstance(doc, dict):
+                raise KbError(f"{path}: frontmatter non objet")
+            doc["_body"] = body
+        else:
+            doc = load_yaml(path)
+        doc["_path"] = str(path.relative_to(self.root))
+        doc["_file"] = str(path)
+        return doc
 
     def docs(self) -> list[tuple[Path, dict[str, Any]]]:
-        rows = []
-        for path in self.paths():
-            doc = load_yaml(path)
-            doc["_path"] = str(path.relative_to(self.root))
-            doc["_file"] = str(path)
-            rows.append((path, doc))
-        return rows
+        return [(path, self.load_doc(path)) for path in self.paths()]
 
     def load_all(self) -> tuple[list[dict[str, Any]], list[str]]:
         docs: list[dict[str, Any]] = []

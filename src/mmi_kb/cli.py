@@ -64,7 +64,7 @@ def cmd_show(app: App, args: argparse.Namespace) -> int:
         print(f"introuvable : {args.id}", file=sys.stderr)
         return 1
     import yaml
-    print(yaml.safe_dump(public(doc), sort_keys=False, allow_unicode=True))
+    print(yaml.safe_dump(public(doc, body=doc.get("kind") == "doc"), sort_keys=False, allow_unicode=True))
     return 0
 
 

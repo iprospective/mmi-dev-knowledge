@@ -21,6 +21,7 @@ def main():
     failures = 0
     task_schema = json.loads((ROOT / "schema/task-knowledge.schema.json").read_text())
     view_schema = json.loads((ROOT / "schema/view.schema.json").read_text())
+    doc_schema = json.loads((ROOT / "schema/doc.schema.json").read_text())
     example = yaml.safe_load((ROOT / "examples/task-knowledge.yml").read_text())["knowledge"]
     views = json.loads((ROOT / "examples/views.json").read_text())
 
@@ -38,6 +39,7 @@ def main():
             and isinstance(view.get("items"), list)
         ))
     failures += not check("schema vue versionne", view_schema.get("$id", "").endswith("view.schema.json"))
+    failures += not check("schema doc versionne", doc_schema.get("$id", "").endswith("doc.schema.json"))
 
     print()
     if failures:
