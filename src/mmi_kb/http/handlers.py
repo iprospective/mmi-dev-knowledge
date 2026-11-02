@@ -6,6 +6,7 @@ from ..app import App
 from ..domain import KbError, public
 from ..views import git_commit
 from .router import HttpError, Request, Response, Router
+from ..ui.handlers import build_ui_routes
 
 
 def build_router(app: App) -> Router:
@@ -15,7 +16,7 @@ def build_router(app: App) -> Router:
         return Response.json({
             "name": "mmi-kb",
             "status": "ok",
-            "endpoints": ["/health", "/commit", "/views/<view>", "/entities/<id>"],
+            "endpoints": ["/ui", "/health", "/commit", "/views/<view>", "/entities/<id>"],
         })
 
     def health(_request: Request) -> Response:
@@ -45,9 +46,10 @@ def build_router(app: App) -> Router:
             raise HttpError(404, f"fiche introuvable : {request.params['id']}")
         return Response.json(public(doc, body=doc.get("kind") == "doc"))
 
-    router.add("GET", "/", root)
+    router.add("GET", "/api", root)
     router.add("GET", "/health", health)
     router.add("GET", "/commit", commit)
     router.add("GET", "/views/<view>", view)
     router.add("GET", "/entities/<id:path>", entity)
+    build_ui_routes(router, app)
     return router

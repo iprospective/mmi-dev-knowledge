@@ -37,6 +37,10 @@ class Response:
     def text(cls, text: str, status: int = 200) -> "Response":
         return cls(status=status, body=text.encode("utf-8"), content_type="text/plain; charset=utf-8")
 
+    @classmethod
+    def html(cls, text: str, status: int = 200) -> "Response":
+        return cls(status=status, body=text.encode("utf-8"), content_type="text/html; charset=utf-8")
+
 
 class HttpError(Exception):
     def __init__(self, status: int, message: str):
