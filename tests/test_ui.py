@@ -31,7 +31,7 @@ def main():
     detail = router.dispatch("GET", "/ui/entities/tool:dolibarr", {})
     check("détail fiche", detail.status == 200 and b"Dolibarr" in detail.body)
 
-    quirk = router.dispatch("GET", "/ui/entities/quirk%3Adolibarr%2Fpdf-sponge-round-string", {})
+    quirk = router.dispatch("GET", "/ui/entities/quirk:dolibarr/pdf-sponge-round-string", {})
     check("détail id avec slash", quirk.status == 200 and b"pdf_sponge" in quirk.body)
 
     search = router.dispatch("GET", "/ui/search", {"q": ["dolibarr"]})

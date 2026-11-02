@@ -74,7 +74,7 @@ def entity_table(items: list[dict[str, Any]]) -> str:
     rows = []
     for doc in items:
         doc_id = str(doc.get("id", ""))
-        href = "/ui/entities/" + quote(doc_id, safe="")
+        href = "/ui/entities/" + quote(doc_id, safe="/:")
         rows.append(
             "<tr>"
             f"<td><a href=\"{href}\">{_e(doc_id)}</a></td>"
