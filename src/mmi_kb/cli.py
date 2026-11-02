@@ -86,6 +86,13 @@ def cmd_view(app: App, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_export(app: App, args: argparse.Namespace) -> int:
+    from .bundle import BundleExporter
+    out = BundleExporter(app).export(Path(args.out))
+    print(f"OK: bundle {out}")
+    return 0
+
+
 def cmd_serve(app: App, args: argparse.Namespace) -> int:
     from .http.server import serve
     serve(app, host=args.host, port=args.port)
@@ -120,6 +127,11 @@ def build_parser() -> argparse.ArgumentParser:
     view.add_argument("--php")
     view.add_argument("--format", choices=("json", "markdown"), default="json")
     view.set_defaults(func=cmd_view)
+
+    export = sub.add_parser("export", help="exporter un bundle pour PM")
+    export.add_argument("--format", choices=("bundle",), default="bundle")
+    export.add_argument("--out", default="dist/kb-snapshot")
+    export.set_defaults(func=cmd_export)
 
     serve = sub.add_parser("serve", help="servir l'API read-only")
     serve.add_argument("--host", default="127.0.0.1")
