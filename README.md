@@ -4,6 +4,9 @@ Knowledge transverse et **générique** des outils et plateformes utilisés par
 iProspective : faits vérifiables, composants, versions, hooks/triggers, patterns,
 quirks, recettes, sources et licences.
 
+> Dépôt public : <https://github.com/iprospective/mmi-dev-knowledge>  
+> Licence : GPL-3.0-or-later.
+
 ## Règles
 
 - Aucun client, projet, tâche, ticket, secret ou credential.
