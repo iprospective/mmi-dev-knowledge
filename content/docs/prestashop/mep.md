@@ -1,0 +1,394 @@
+---
+id: doc:prestashop/mep
+kind: doc
+doc_type: procedure
+title: PrestaShop — procédure de mise en production (commune au parc)
+summary: Procédure générique de MEP PrestaShop.
+tool: prestashop
+status: draft
+owner: iprospective
+audience:
+- dev
+- ops
+provenance:
+  source: internal
+  fetched_at: '2026-11-02'
+---
+
+# PrestaShop — procédure de mise en production (commune au parc)
+
+Invariants valables sur les **quatre** boutiques PrestaShop du parc. Chaque
+`environments.md` de projet renvoie ici et ne garde que **ses** spécificités.
+
+Tout ce qui suit est **constaté**, pas supposé : les pièges des § 2, 4 et 5 ont chacun
+coûté une MEP (un ticket, <client>, 2026-08-13).
+
+> ⚠ **Tripwire prod (NORMS)** : aucune commande mutante sans consentement humain explicite
+> **pour cette action précise**. Inspecter en lecture seule, proposer la commande exacte,
+> attendre le feu vert. Un accord ne vaut pas pour l'étape suivante.
+
+## Séquence
+
+```
+0. snapshot / point de restauration      (si infra opensvc/LXC/ZFS — cf. NORMS)
+1. vérifier son IP dans PS_MAINTENANCE_IP   ← garde-fou, AVANT tout
+2. maintenance ON
+3. inspecter l'arbre git (status ciblé)
+4. fetch + revue du lot
+5. ── feu vert humain ──
+6. git pull --ff-only
+7. upgrade des modules dont la version a changé
+8. purge de cache (conditionnelle, § 5)
+9. vérification (présentation de panier, front)
+10. maintenance OFF
+11. miroir (projets concernés)
+```
+
+## 1. Maintenance — et le garde-fou qui va avec
+
+Le commutateur est la clé de configuration **`PS_SHOP_ENABLE`** (`1` = boutique ouverte,
+`0`/`NULL` = maintenance). Le cœur ne teste rien d'autre :
+
+```php
+// classes/controller/FrontController.php:763
+if ($this->maintenance == true || !(int) Configuration::get('PS_SHOP_ENABLE')) {
+```
+
+`NULL` caste en `0` ⇒ **maintenance**. C'est d'ailleurs l'état des copies de dev du parc,
+avec `10.0.3.1` (passerelle LXC) en liste blanche.
+
+**Il n'existe aucune commande `bin/console` pour ça** (vérifié : `src/PrestaShopBundle/Command/`
+n'expose que module/theme/translations/schema). Deux voies : le back-office
+(*Paramètres de la boutique › Maintenance*), ou le CLI.
+
+### ⚠ Le garde-fou : `PS_MAINTENANCE_IP` d'abord
+
+En maintenance, seules les IP de `PS_MAINTENANCE_IP` voient le site. **Vérifier que la
+sienne y est AVANT de couper**, sinon on se verrouille dehors au moment précis où il faut
+vérifier que la MEP est bonne.
+
+```bash
+# 1) mon IP publique vue du serveur
+curl -s https://ifconfig.me
+
+# 2) est-elle dans la liste ?
+php7.4 -r 'require "config/config.inc.php";
+  $ips = array_map("trim", explode(",", (string) Configuration::get("PS_MAINTENANCE_IP")));
+  $me  = trim(shell_exec("curl -s https://ifconfig.me"));
+  echo in_array($me, $ips, true) ? "OK $me\n" : "ABSENT $me — ne pas couper\n";'
+```
+
+### Bascule
+
+```bash
+php7.4 -r 'require "config/config.inc.php"; Configuration::updateValue("PS_SHOP_ENABLE", 0);'  # ON
+php7.4 -r 'require "config/config.inc.php"; Configuration::updateValue("PS_SHOP_ENABLE", 1);'  # OFF
+```
+
+Passer par `Configuration::updateValue()` et **non** par un `UPDATE` SQL direct : la classe
+invalide le cache de configuration, l'`UPDATE` non.
+
+## 2. ⚠ `php7.4`, jamais `php`
+
+Sur les serveurs hébergeant plusieurs versions, le `php` par défaut n'est **pas** celui du
+site. Sur la prod <client> il est en **8.5**, sur laquelle PrestaShop 1.7.8 **ne démarre
+pas** (doctrine/dbal : `PDOConnection::query() must be compatible with PDO::query()`, fatal
+dès l'autoload).
+
+Le site ne le voit jamais — son pool FPM tourne en 7.4. **Seules les commandes lancées à la
+main tombent dedans**, c'est-à-dire pendant une MEP, au pire moment.
+
+```bash
+php7.4 bin/console cache:clear --env=prod   # ✅
+php    bin/console …                        # ❌ fatal
+```
+
+(Exemple choisi à dessein : `prestashop:module upgrade` n'est **pas** utilisable chez nous,
+cf. § 4 — la version de PHP n'y est pour rien.)
+
+Même règle sur le conteneur de dev, où `php` est aussi en 8.5.
+
+## 3. `git pull --ff-only`, après inspection ciblée
+
+Les arbres de prod PrestaShop sont **durablement sales** : les modules écrivent dans des
+fichiers trackés (91 fichiers modifiés côté <client>). C'est normal, ce n'est pas un
+incident — mais ça interdit de lire `git status` en bloc.
+
+```bash
+git status --porcelain -uno | wc -l                  # la saleté est attendue
+git status --porcelain -uno -- <fichiers du ticket>  # DOIT être vide
+git fetch <remote> <branche> && git log --oneline HEAD..FETCH_HEAD
+# ── feu vert ──
+git pull --ff-only <remote> <branche>
+```
+
+`--ff-only` pour qu'un cas non prévu **échoue** au lieu de fabriquer silencieusement un
+merge dans un arbre déjà sale.
+
+### Submodules : `sync` avant `update`, et dans la MÊME commande que le pull
+
+Un `git pull` qui déplace un pointeur de submodule laisse le dossier **vide** jusqu'à
+l'`update` qui suit : les deux s'enchaînent toujours dans la même commande, sinon le site
+tourne quelques secondes sans le module.
+
+```bash
+git pull --ff-only <remote> <branche> && git submodule sync -q && git submodule update --init
+```
+
+`sync` n'est pas décoratif : il **reporte dans le dépôt local l'URL du `.gitmodules`**.
+Sans lui, un module dont le dépôt a changé de groupe garde l'ancien remote et continue de
+tirer au mauvais endroit tant que l'ancienne URL répond (GitLab redirige après un
+transfert — donc **rien ne casse, et c'est le problème** : on croit le recâblage fait).
+Rencontré sur `modules/<client>flags` (groupe `prestashop` → `<client>-<client>`, un ticket).
+
+⚠ **Vérifier l'URL d'un submodule : `git config remote.origin.url`, jamais
+`git remote get-url origin`.** Le second applique les réécritures `url.*.insteadOf` de la
+machine — sur la prod <client>, `gitlab:` devient `https://<gitlab-instance>/` — et ne
+rend donc **jamais** la forme canonique attendue. Un contrôle écrit avec `get-url` échoue
+toujours et fait croire à un recâblage raté (un ticket : la MEP s'est arrêtée là, sur un
+faux négatif, alors que tout était en place).
+
+## 4. ⚠ Upgrade de module en CLI : le faux « rien à faire »
+
+Un `Module` instancié **hors back-office** a `installed` et `database_version` à **NULL**
+(cache statique non amorcé). Or le cœur fait :
+
+```php
+// classes/module/Module.php:537
+$ret = $module->installed && Module::needUpgrade($module);
+```
+
+`installed` étant NULL, la détection **n'est jamais appelée** : `runUpgradeModule()` renvoie
+`available_upgrade => 0`. Ça **se lit « rien à faire » alors que rien n'a été tenté** — les
+`upgrade/upgrade-x.y.z.php` ne sont pas joués et la MEP paraît réussie.
+
+Second piège, juste au-dessus :
+
+```php
+// Module.php:519
+if (((int) $module->installed == 1) & (empty($module->database_version) === true)) {
+    Module::upgradeModuleVersion($module->name, $module->version);   // marque à jour !
+```
+
+Amorcer `installed` **sans** amorcer `database_version` fait pire que rien : le module est
+déclaré à jour et les upgrades sont définitivement sautés. **Amorcer les deux, avec la vraie
+valeur en base.**
+
+```php
+<?php
+// upgrade-module.php — à lancer depuis la racine : php7.4 upgrade-module.php <module>
+require dirname(__FILE__) . '/config/config.inc.php';
+
+$name = $argv[1] ?? null;
+if (!$name) { fwrite(STDERR, "usage: php7.4 upgrade-module.php <module>\n"); exit(1); }
+
+$row = Db::getInstance()->getRow(
+    'SELECT version FROM ' . _DB_PREFIX_ . 'module WHERE name = "' . pSQL($name) . '"'
+);
+if (!$row) { fwrite(STDERR, "module $name absent de la table module\n"); exit(1); }
+
+$module = Module::getInstanceByName($name);
+$module->installed        = true;          // ← sinon needUpgrade() n'est jamais appelé
+$module->database_version = $row['version']; // ← sinon le module est marqué "à jour"
+
+Module::initUpgradeModule($module);
+$res = $module->runUpgradeModule();
+
+printf("%s : %s → %s | upgrades dispo=%d appliqués=%d succès=%s\n",
+    $name, $row['version'], $module->version,
+    $res['available_upgrade'], $res['number_upgraded'],
+    $res['success'] ? 'oui' : 'NON');
+exit($res['success'] ? 0 : 1);
+```
+
+Vérifié sur l'env de dev <client> le 2026-08-14, puis le 2026-09-22 :
+
+```
+cins_newproductfields : 1.0.1 → 1.0.2 | upgrades dispo=1 appliqués=1 succès=oui
+<client>flags          : 1.5.0 → 1.8.0 | upgrades dispo=1 appliqués=1 succès=oui
+```
+
+⚠ **`succès=NON` ne veut pas dire « échec ».** Relancé alors qu'il n'y a plus rien à jouer,
+`runUpgradeModule()` rend `available_upgrade=0` **et** `success=false` — c'est sa façon de
+dire « aucun upgrade à appliquer », l'état en base ne bouge pas. Le seul vrai échec est
+`dispo≥1` **et** `appliqués=0`, ou des erreurs dans `getErrors()`. Lire les trois nombres,
+pas le seul `succès`.
+
+**Module sans dossier `upgrade/`** : il n'y a rien à jouer, donc rien ne se passe — la
+version en base reste en arrière pendant que le code est à jour. Écrire alors la version
+directement, c'est ce que fait le cœur en fin d'upgrade :
+
+```bash
+php7.4 -r 'require "config/config.inc.php";
+  $m = Module::getInstanceByName("<module>");
+  exit(Module::upgradeModuleVersion("<module>", $m->version) ? 0 : 1);'
+```
+
+Un module qu'on maintient **mérite son dossier `upgrade/`** : un fichier
+`upgrade/upgrade-X.Y.Z.php` qui réenregistre les hooks attendus coûte dix lignes et
+rattrape le cas réel — une greffe perdue laisse le module installé et muet (un ticket).
+
+### ⚠ `bin/console prestashop:module upgrade` ne marche pas ici — ce n'est pas la référence
+
+Jusqu'au 2026-10-01 ce document présentait `php7.4 bin/console prestashop:module upgrade
+<module>` comme la commande de référence, « lente mais fiable ». **C'est faux sur notre
+parc** : elle refuse, toujours, avec un message qui n'apprend rien —
+
+```
+L'action upgrade est impossible pour le module <module>. Malheureusement, le module n'a pas
+fourni plus de détails.
+```
+
+Mesuré sur l'env de dev <client> (2026-09-22 et 2026-10-01), versions abaissées en base
+pour forcer une vraie montée :
+
+| module | nature | résultat |
+|---|---|---|
+| `<client>flags` | local, **sans** `upgrade/` | refus |
+| `<client>flags` | local, **avec** `upgrade/` | refus |
+| `ps_imageslider` | **natif** PrestaShop | refus, après **14 minutes** |
+
+Les trois enseignements, dans cet ordre :
+
+1. **Ce n'est pas le module.** Un module natif échoue comme un module maison : inutile de
+   chercher ce qui manquerait au nôtre. L'absence de dossier `upgrade/` **n'est pas** la
+   cause (hypothèse tenue un temps en un ticket, démentie en un ticket).
+2. **La commande coûte un quart d'heure pour rien** — `Module::getModulesOnDisk()` interroge
+   `api-addons.prestashop.com`, injoignable depuis nos serveurs, et chaque appel attend son
+   timeout. Un `timeout` trop court la tue **sans aucune sortie** : silence et version
+   inchangée, qu'on prend alors pour « rien à faire ».
+3. **La bonne méthode est le script d'amorçage ci-dessus**, qui joue réellement les fichiers
+   d'upgrade (vérifié) en quelques secondes.
+
+Cause probable, par lecture du cœur et **non isolée en test** : `ModuleManager::upgrade()`
+termine par `$module->onUpgrade()`, qui écrit en base `attributes['version_available']` —
+renseigné par le catalogue Addons, donc **vide chez nous** ; la méthode rend `false`, et le
+message générique ci-dessus tombe. Si quelqu'un veut trancher pour de bon : instrumenter
+`src/Adapter/Module/Module.php::onUpgrade` sur un env de dev.
+
+## 5. Purge de cache : conditionnelle, pas réflexe
+
+Inutile quand `PS_SMARTY_FORCE_COMPILE = 1` (recompilation sur mtime). Contrôler plutôt que
+supposer :
+
+```bash
+php7.4 -r 'require "config/config.inc.php";
+  echo "PS_SMARTY_FORCE_COMPILE=" . var_export(Configuration::get("PS_SMARTY_FORCE_COMPILE"), true) . "\n";'
+```
+
+Si à `0` :
+
+```bash
+php7.4 bin/console cache:clear --env=prod
+# ou, si le kernel refuse de démarrer : rm -rf var/cache/prod/*
+```
+
+⚠ Les valeurs relevées dans le tableau § 8 viennent des **copies de dev**. Sur une copie de
+dev, `PS_SMARTY_FORCE_COMPILE` est typiquement forcé à 1 : **lire la valeur sur la prod**
+au moment de la MEP, pas ici.
+
+## 6. Vérifier sans navigateur : présenter un vrai panier
+
+Le contrôle le plus probant après une MEP touchant au tunnel : **présenter de vrais paniers
+de production** via le `CartPresenter`, en lecture seule. Ça traverse les hooks des modules
+et prouve le comportement sur les données réelles — là où un test unitaire ne dit rien.
+
+```php
+<?php
+// check-cart.php — php7.4 check-cart.php <id_cart> [<id_cart> …]  (LECTURE SEULE)
+require dirname(__FILE__) . '/config/config.inc.php';
+
+// Le CartPresenter formate les prix via le conteneur Symfony : il faut booter le kernel.
+// SymfonyContainer::getInstance() lit la globale $kernel — d'où le `global` ci-dessous.
+require_once dirname(__FILE__) . '/app/AppKernel.php';
+global $kernel;
+$kernel = new AppKernel('prod', false);
+$kernel->boot();
+
+$ctx = Context::getContext();
+$ctx->container = $kernel->getContainer();
+
+foreach (array_slice($argv, 1) as $idCart) {
+    Cache::clean('*');   // sinon les caches statiques fuient d'un panier à l'autre
+
+    $cart = new Cart((int) $idCart);
+    if (!Validate::isLoadedObject($cart)) { echo "$idCart : panier introuvable\n"; continue; }
+
+    // le presenter dépend d'un contexte complet
+    $ctx->cart     = $cart;
+    $ctx->customer = new Customer((int) $cart->id_customer);
+    $ctx->currency = new Currency((int) $cart->id_currency);
+    $ctx->language = new Language((int) $cart->id_lang);
+
+    $presented = (new PrestaShop\PrestaShop\Adapter\Presenter\Cart\CartPresenter())->present($cart);
+    printf("panier %d : port=%s | %d produit(s)\n",
+        $idCart, $presented['subtotals']['shipping']['value'], count($presented['products']));
+}
+```
+
+Sortie réelle (env de dev <client>, 2026-08-14) :
+
+```
+panier 54806 : port=9,76 € | 2 produit(s)
+panier 54805 : port=gratuit | 2 produit(s)
+panier 54792 : port=gratuit | 3 produit(s)
+```
+
+**Pièges rencontrés** (un ticket) :
+
+- **Le conteneur Symfony est obligatoire.** Sans le boot du kernel, `PriceFormatter::format()`
+  remonte `ContainerNotFoundException: Kernel Container is not available`. Amorcer
+  `$ctx->container` seul ne suffit pas si le kernel n'est pas booté :
+  `SymfonyContainer::getInstance()` renvoie `null` tant que la globale `$kernel` n'existe pas.
+- **Le contexte doit être complet** (`currency`, `language`, `customer`, `shop`), sinon le
+  presenter tombe en erreur ou renvoie des prix non formatés.
+- **Les caches statiques persistent dans le processus** (`Cart::getCartRules()` notamment) :
+  sans `Cache::clean('*')` entre deux paniers, on obtient un **faux négatif** — un bon de
+  réduction du panier précédent continue de s'appliquer.
+- Pour certains formatages, `Adapter\Product\PriceFormatter` fonctionne en CLI là où
+  `getCurrentLocale()->formatPrice()` renvoie null.
+
+## 7. Miroirs
+
+Pour les projets qui en ont un, **le push miroir fait partie de la MEP**, pas d'une étape
+optionnelle : un partenaire externe consomme le miroir et travaillerait sinon sur une
+version périmée.
+
+Aujourd'hui **<client>** est le seul cas actif du parc (miroir `gogs`, confirmé Mathieu
+2026-07-21). L'alias `gogs:` passe par une clé **avec passphrase** : si l'agent SSH est
+vide, le push échoue en `Permission denied (publickey)` — ce n'est **pas** un faux positif
+à ignorer, il faut faire charger la clé.
+
+## 8. Spécificités par site
+
+Relevé le 2026-08-14 depuis les copies de dev et les manifestes PM. Les cases « à
+documenter » sont des **trous connus**, pas des oublis de rédaction.
+
+| Projet | Version PS | PHP CLI | Branche prod | Remote de déploiement | Miroir | Préfixe BDD |
+|---|---|---|---|---|---|---|
+| `<client>/presta` | 1.7.8.10 | `php7.4` | `master` | `gitlab` (**`ssh -A` requis**) | **gogs (actif)** | `ps_` |
+| `<client>/prestashop` | 1.7.8.7 | `php7.4` | `master` | alias SSH `<client>-presta` | — | `ps_` |
+| `<client>/prestashop` | 1.7.8.11 | `php7.4` | `master` | *pas de prod documentée* | `gogs` (remote présent) | `psy7_` |
+| `<client>/prestashop` | 1.7.8.7 | à documenter | `master` | remote `dev` = `php_<client>@prod.iprospective.fr:public/<client>` | `gogs` (remote présent) | `ps_` |
+
+Points d'attention spécifiques :
+
+- **<client>** — le `-A` (agent forwarding) est **obligatoire** : la prod n'a pas de clé
+  propre vers le GitLab sfy, elle utilise la clé forwardée. Miroir gogs à pousser.
+- **<client>** — flux à **trois** branches : `branche de ticket → dev → recette préprod →
+  master → prod`. Une MR de ticket vise **`dev`**, jamais `master` (incident 2026-08-02 :
+  quatre tickets mergés directement dans `master`). Purge de cache déclarée nécessaire en
+  `post_deploy` (overrides).
+- **<client>** — gros WIP non committé hérité du checkout historique (~608 fichiers) : à
+  trier **avant** tout travail sérieux. Aucune prod documentée.
+- **<client>** — **pas d'`environments.md`** ; trois remotes hétérogènes (bitbucket
+  `cins`, `dev` en SSH direct vers `prod.iprospective.fr`, `gogs`, `origin`). Le déploiement
+  réel est à établir avant toute MEP.
+
+## Voir aussi
+
+- `norms/src/modules/git-mep.md` — règles de branche/MR, tripwire sécurité prod, snapshot
+- `norms/src/modules/git-mep-pratique.md` — dépannage du transport git, et § *Script de MEP*
+  (une MEP non générique s'automatise dans `tasks/RM<id>_<slug>.script-mep.sh`, conservé à
+  côté de la fiche du ticket — premier cas : un ticket, puis un ticket pour un submodule déplacé)
+- Skill `mmi-presta-dev-vhost` — provisionnement d'un environnement de dev PrestaShop
