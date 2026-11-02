@@ -19,7 +19,7 @@ def make_handler(router: Router):
             parsed = urlparse(self.path)
             query = parse_qs(parsed.query, keep_blank_values=False)
             try:
-                response = router.dispatch(method, parsed.path, query)
+                response = router.dispatch("GET" if method == "HEAD" else method, parsed.path, query)
             except HttpError as exc:
                 response = self._error(exc.status, exc.message)
             except Exception as exc:  # pragma: no cover - garde-fou serveur
