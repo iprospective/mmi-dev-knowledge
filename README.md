@@ -24,7 +24,8 @@ content/recipes/         recettes de test génériques
 content/vendors/         éditeurs/communautés
 content/licenses/        licences et obligations
 collectors/              collecte optionnelle par plateforme
-src/mmi_kb/              CLI
+src/mmi_kb/              CLI, API et UI
+src/mmi_kb/ui/           pages HTML read-only
 tests/                   tests de structure des contrats
 index/                    index SQLite généré, non versionné
 ```
@@ -44,10 +45,14 @@ bin/mmi-kb index
 bin/mmi-kb search dolibarr
 bin/mmi-kb show quirk:dolibarr/pdf-sponge-round-string
 bin/mmi-kb view tests --tool dolibarr --format json
+bin/mmi-kb export --format bundle --out dist/kb-snapshot
 bin/mmi-kb serve --host 127.0.0.1 --port 8091
 ```
 
-Prérequis : Python 3.9+, PyYAML.
+UI : `http://127.0.0.1:8091/` (accueil, fiches, recherche, vues).
+API : `/api`, `/health`, `/views/<view>`, `/entities/<id>`.
+
+Prérequis : Python 3.10+, PyYAML, markdown-it-py.
 
 ## Licence
 
