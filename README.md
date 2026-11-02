@@ -11,8 +11,10 @@ quirks, recettes, sources et licences.
 
 `mmi-dev-knowledge` est utilisé **conjointement avec Karl/PM** — le même outil,
 [`karl-ai-project-manager`](https://github.com/iprospective/karl-ai-project-manager)
-— et avec TestKit. Karl/PM est la mémoire projet, TestKit lit les recettes et quirks,
-BK fournit les faits produits. BK ne remplace pas Karl/PM.
+— et avec TestKit. Karl/PM est le **gestionnaire de projet assisté par IA, modulaire** :
+il porte le projet, les tâches, les décisions, les environnements et les workflows.
+TestKit lit les recettes et quirks, BK fournit les faits produits. BK ne remplace
+pas Karl/PM.
 
 ## Règles
 
