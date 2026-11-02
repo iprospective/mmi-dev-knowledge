@@ -7,6 +7,12 @@ quirks, recettes, sources et licences.
 > Dépôt public : <https://github.com/iprospective/mmi-dev-knowledge>  
 > Licence : GPL-3.0-or-later.
 
+## Écosystème
+
+`mmi-dev-knowledge` est utilisé **conjointement avec PM, Karl et TestKit** : PM
+est la mémoire projet, Karl consomme le contexte compact, TestKit lit les recettes
+et quirks. BK ne remplace aucun de ces outils.
+
 ## Règles
 
 - Aucun client, projet, tâche, ticket, secret ou credential.
