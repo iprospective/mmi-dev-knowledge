@@ -9,9 +9,10 @@ quirks, recettes, sources et licences.
 
 ## Écosystème
 
-`mmi-dev-knowledge` est utilisé **conjointement avec PM, Karl et TestKit** : PM
-est la mémoire projet, Karl consomme le contexte compact, TestKit lit les recettes
-et quirks. BK ne remplace aucun de ces outils.
+`mmi-dev-knowledge` est utilisé **conjointement avec Karl/PM** — le même outil,
+[`karl-ai-project-manager`](https://github.com/iprospective/karl-ai-project-manager)
+— et avec TestKit. Karl/PM est la mémoire projet, TestKit lit les recettes et quirks,
+BK fournit les faits produits. BK ne remplace pas Karl/PM.
 
 ## Règles
 
